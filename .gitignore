@@ -42,3 +42,9 @@ models/
 .idea/
 .DS_Store
 Thumbs.db
+
+*.docx
+check.py
+
+*.docx
+check.py
