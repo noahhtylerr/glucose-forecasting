@@ -1,0 +1,9 @@
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+xgboost>=2.1
+matplotlib>=3.9
+python-dotenv>=1.0
+pytest>=8.0
+# sequence model (install separately; heavy)
+# tensorflow>=2.16

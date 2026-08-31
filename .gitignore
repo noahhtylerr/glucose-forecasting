@@ -1,0 +1,44 @@
+# ---- Data: never commit personal health data ----
+data/
+*.csv
+*.xlsx
+
+# ---- Secrets ----
+.env
+*.secret
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---- Environments (any name) ----
+.venv/
+venv/
+env/
+ENV/
+*-env/
+*_env/
+tf-env/
+.conda/
+
+# ---- Models / artifacts ----
+models/
+*.h5
+*.keras
+*.joblib
+*.pkl
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
