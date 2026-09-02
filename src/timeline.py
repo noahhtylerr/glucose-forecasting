@@ -1,4 +1,3 @@
-import pandas as pd
 from src.config import GRID_MINUTES, MAX_INTERPOLATION_GAP_MIN
 
 def to_grid(cgm):
