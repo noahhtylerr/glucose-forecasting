@@ -21,15 +21,17 @@ def persistence_baseline(df, horizon_minutes):
 def linear_baseline(df, horizon_minutes):
     return df['glucose'] + df['glucose_slope_15_min'] * horizon_minutes
 
-def align(df, y_true, y_pred):
-    y_true = y_true.notna()
-    y_pred = y_pred.notna()
-    return y_true, y_pred
+def align( y_true, y_pred):
+    ok = y_true.notna() & y_pred.notna()
+    return y_true[ok], y_pred[ok]
 
 def mae(y_true, y_pred):
-    mae = np.abs(y_true - y_pred)
-    rmse = np.sqrt(((y_true - y_pred)**2).mean())
-    return mae, rmse
+    y_true, y_pred = align(y_true, y_pred)
+    return np.abs(y_true - y_pred).mean()
+
+def rmse(y_true, y_pred):
+    y_true, y_pred = align(y_true, y_pred)
+    return np.sqrt(((y_true - y_pred) ** 2).mean())
 
 def skill_score(model_mae, baseline_mae):
     return 1 - model_mae / baseline_mae
