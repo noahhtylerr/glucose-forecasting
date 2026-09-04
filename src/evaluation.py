@@ -22,6 +22,8 @@ def linear_baseline(df, horizon_minutes):
     return df['glucose'] + df['glucose_slope_15_min'] * horizon_minutes
 
 def align( y_true, y_pred):
+    # restrict both to the rows they share before filtering
+    y_true, y_pred = y_true.align(y_pred, join="inner")
     ok = y_true.notna() & y_pred.notna()
     return y_true[ok], y_pred[ok]
 
