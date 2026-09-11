@@ -77,7 +77,8 @@ def train_xgboost(df, train_idx, target_col, features=FEATURE_COLUMNS):
     train = train.dropna(subset=features + [target_col])
 
     X_train = train[features]
-    y_train = train[target_col]
+    # predict the change from the current reading, not the level
+    y_train = train[target_col] - train['glucose']
 
     model = XGBRegressor(
         n_estimators=300,
@@ -98,9 +99,12 @@ def predict_xgboost(df, model, idx, features=FEATURE_COLUMNS):
     test = df.iloc[idx]
 
     X_test = test[features].dropna()
-    y_pred = model.predict(X_test)
+    deltas = model.predict(X_test)
 
-    return pd.Series(y_pred, index=X_test.index)
+    # the model outputs a change so add the current reading back to get mg/dL
+    preds = deltas + test.loc[X_test.index, 'glucose'].to_numpy()
+
+    return pd.Series(preds, index=X_test.index)
 
 LSTM_FEATURES = [
     'glucose',
