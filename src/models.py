@@ -129,11 +129,16 @@ def create_sequences(df, idx, target_col, features=LSTM_FEATURES, window=LSTM_WI
 
     complete = rows[features].notna().all(axis=1).to_numpy()
     has_target = rows[target_col].notna().to_numpy()
+    period = rows['period'].to_numpy()
 
     X, y, last_rows = [], [], []
 
     for i in range(len(rows) - window + 1):
         end = i + window - 1
+
+        # a window must not span the gap between collection periods
+        if period[i] != period[end]:
+            continue
 
         # skip any window containing an incomplete row, or with no target
         if not complete[i:end + 1].all():
@@ -150,8 +155,8 @@ def create_sequences(df, idx, target_col, features=LSTM_FEATURES, window=LSTM_WI
 def build_lstm(n_features, window):
     model = keras.Sequential([
         keras.layers.Input(shape=(window, n_features)),
-        keras.layers.LSTM(64, return_sequences=True),
-        keras.layers.LSTM(32),
+        keras.layers.LSTM(32, return_sequences=True),
+        keras.layers.LSTM(16),
         keras.layers.Dense(16, activation='relu'),
         keras.layers.Dense(1),
     ])
@@ -185,7 +190,7 @@ def train_lstm(df, train_idx, target_col, features=LSTM_FEATURES, window=LSTM_WI
         X[:split], y[:split],
         validation_data=(X[split:], y[split:]),
         epochs=100,
-        batch_size=32,
+        batch_size=64,
         callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)],
         verbose=0,
     )
