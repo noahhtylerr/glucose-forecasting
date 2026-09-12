@@ -39,18 +39,17 @@ def load_events_csv(path: str | Path):
 
     return df.sort_values("timestamp").reset_index(drop=True)
 
-# Load event logs pulled from the Nightscout API (treatments endpoint)
+# Load event logs pulled from Nightscout 
 def load_nightscout_events_csv(path: str | Path):
     raw = pd.read_csv(path, encoding='utf-8-sig')
 
-    # A field absent from every record produces no column at all, so fill in
-    # anything missing before building the frame
+    # A field absent from every record produces no column at all, so fill in anything missing before building the frame
     for col in ['eventType', 'carbs', 'insulin', 'duration', 'notes']:
         if col not in raw.columns:
             raw[col] = None
 
     df = pd.DataFrame({
-        # The API returns 'created_at', aware and in UTC
+        # The API returns 'created_at', aware and in UTC -> convert to 'timestamp' in local time
         "timestamp": pd.to_datetime(raw["created_at"], errors="coerce", utc=True)
                        .dt.tz_convert(LOCAL_TZ),
         "event_type": raw["eventType"].astype("string").str.strip(),

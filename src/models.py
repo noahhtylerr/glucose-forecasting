@@ -52,8 +52,7 @@ INTERACTION_FEATURES = [
 
 TIME_FEATURES = ['time_sin', 'time_cos']
 
-# targets, timestamp, source and is_interpolated are excluded:
-# targets would leak, the rest describe the data rather than the physiology
+# targets, timestamp, source and is_interpolated are excluded -> targets would leak, the rest describe the data rather than the physiology
 FEATURE_COLUMNS = (
     GLUCOSE_FEATURES
     + INSULIN_FEATURES

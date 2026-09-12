@@ -10,6 +10,7 @@ from src.features import build_features
 from src.config import HORIZONS_MIN
 from src.evaluation import walk_forward_splits, mae, skill_score, persistence_baseline, linear_baseline
 from src.models import train_xgboost, predict_xgboost, train_lstm, predict_lstm
+from src.pipeline import build_period
 N_SPLITS = 5
 
 # ---------- CGM: both periods from Clarity, same loader ----------
@@ -37,15 +38,6 @@ events = events.reset_index(drop=True)
 print('events    ', len(events), events['timestamp'].min(), '->', events['timestamp'].max())
 print()
 print(events['event_type'].value_counts())
-
-# ---------- run the pipeline ----------
-def build_period(cgm, events, label):
-    grid = to_grid(cgm)
-    grid = add_events(grid, events)
-    grid = add_iob_cob(grid)
-    out = build_features(grid, events)
-    out['period'] = label
-    return out
 
 april_df = build_period(april_cgm, events, 'april')
 sept_df = build_period(sept_cgm, events, 'sept')
@@ -92,3 +84,4 @@ for horizon in HORIZONS_MIN:
         lstm_mae = mae(truth, pred)
         base_mae = mae(truth, persistence_baseline(df.iloc[test_idx], horizon))
         print(horizon, i, round(lstm_mae, 3), round(skill_score(lstm_mae, base_mae), 3))
+        

@@ -1,7 +1,6 @@
 from src.config import RAW_DIR
 from src.nightscout_scraper import fetch_range
 
-# A day wide on each end -- timezone offsets make the boundaries fuzzy
 START = '2026-08-31'
 END = '2026-09-14'
 
