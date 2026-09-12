@@ -19,8 +19,7 @@ def load_cgm_csv(path: str | Path, source: str):
 
     return df.sort_values('timestamp').reset_index(drop=True)
 
-# Load events data from Nightscout CSV including columns: timestamp, event_type,\
-# carbs, insulin, duration, and notes
+# Load events data from Nightscout CSV including columns: timestamp, event_type, carbs, insulin, duration, and notes
 def load_events_csv(path: str | Path):
     raw = pd.read_csv(path, encoding='utf-8-sig')
 
@@ -40,4 +39,29 @@ def load_events_csv(path: str | Path):
 
     return df.sort_values("timestamp").reset_index(drop=True)
 
+# Load event logs pulled from the Nightscout API (treatments endpoint)
+def load_nightscout_events_csv(path: str | Path):
+    raw = pd.read_csv(path, encoding='utf-8-sig')
 
+    # A field absent from every record produces no column at all, so fill in
+    # anything missing before building the frame
+    for col in ['eventType', 'carbs', 'insulin', 'duration', 'notes']:
+        if col not in raw.columns:
+            raw[col] = None
+
+    df = pd.DataFrame({
+        # The API returns 'created_at', aware and in UTC
+        "timestamp": pd.to_datetime(raw["created_at"], errors="coerce", utc=True)
+                       .dt.tz_convert(LOCAL_TZ),
+        "event_type": raw["eventType"].astype("string").str.strip(),
+        # Blank carbs on a bolus means zero carbs, not unknown
+        "carbs": pd.to_numeric(raw["carbs"], errors="coerce").fillna(0.0),
+        "insulin": pd.to_numeric(raw["insulin"], errors="coerce").fillna(0.0),
+        "duration": pd.to_numeric(raw["duration"], errors="coerce").fillna(0.0),
+        # Exercise features key off note text, so normalize case
+        "notes": raw["notes"].astype("string").fillna("").str.strip().str.lower(),
+    })
+
+    df = df.dropna(subset=["timestamp"])
+
+    return df.sort_values("timestamp").reset_index(drop=True)
