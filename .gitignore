@@ -1,8 +1,3 @@
-# ---- Data: never commit personal health data ----
-data/
-*.csv
-*.xlsx
-
 # ---- Secrets ----
 .env
 *.secret
@@ -30,13 +25,6 @@ ENV/
 tf-env/
 .conda/
 
-# ---- Models / artifacts ----
-models/
-*.h5
-*.keras
-*.joblib
-*.pkl
-
 # ---- Editors / OS ----
 .vscode/
 .idea/
@@ -46,5 +34,3 @@ Thumbs.db
 *.docx
 check.py
 
-*.docx
-check.py
