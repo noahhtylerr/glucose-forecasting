@@ -18,9 +18,10 @@ print()
 
 # ---------- RQ1: encoded domain knowledge vs learned representation ----------
 # One pass per horizon per split. Both models and both baselines are predicted on the same test block, 
-# then all four are cut down to the rows they share before anything is measured.
+# then all four are cut down to the rows they share before anything is measured
 
 rq1_rows = []
+pred_rows = []   # per-row predictions, kept for the figures
 
 for horizon in HORIZONS_MIN:
     target_col = f'target_glucose_{horizon}'
@@ -62,11 +63,26 @@ for horizon in HORIZONS_MIN:
             row[f'{name}_skill'] = round(skill_score(model_mae, base_mae), 3)
 
         rq1_rows.append(row)
+
+        # keep the actual predictions, not just the summary metrics -> used for figures
+        block = df.loc[common, ['timestamp', 'glucose', 'period']].copy()
+        block['truth'] = truth_common
+        for name, pred in preds.items():
+            block[name] = pred.loc[common]
+        block['horizon'] = horizon
+        block['split'] = i
+        pred_rows.append(block)
+
         print(f'horizon {horizon} split {i}  n={len(common)}  '
               f'xgb {row["xgboost_mae"]}  lstm {row["lstm_mae"]}  base {row["persistence_mae"]}')
 
 rq1 = pd.DataFrame(rq1_rows)
 rq1.to_csv(REPORTS_DIR / f'dev_rq1_{RUN_TAG}.csv', index=False)
+
+# index reset so the original row labels survive as a column in the parquet
+preds = pd.concat(pred_rows).rename_axis('row').reset_index()
+preds.to_parquet(REPORTS_DIR / f'dev_predictions_{RUN_TAG}.parquet')
+print('saved', len(preds), 'prediction rows')
 
 # ---------- RQ1 summary ----------
 # Four horizons averaged over five splits, plus the paired win count, which is the comparison that actually answers RQ1
