@@ -33,4 +33,4 @@ Thumbs.db
 
 *.docx
 check.py
-/scripts.make_figures.py
+scripts/make_figures.py
