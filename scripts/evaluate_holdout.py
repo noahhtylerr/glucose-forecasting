@@ -6,7 +6,7 @@ import keras
 import pandas as pd
 from xgboost import XGBRegressor
 
-from src.config import RAW_DIR, PROCESSED_DIR, MODELS_DIR, PROJECT_ROOT, HORIZONS_MIN
+from src.config import RAW_DIR, PROCESSED_DIR, MODELS_DIR, PROJECT_ROOT, HORIZONS_MIN, LOCAL_TZ
 from src.loading import load_cgm_csv, load_nightscout_events_csv
 from src.pipeline import build_period
 from src.evaluation import mae, rmse, skill_score, hypo_counts, persistence_baseline, linear_baseline
@@ -14,9 +14,16 @@ from src.models import predict_xgboost, predict_lstm
 
 REPORTS_DIR = PROJECT_ROOT / 'reports'
 VARIANTS = ['M1', 'M2', 'M3']
+HOLDOUT_START = '2026-09-25'
+HOLDOUT_END   = '2026-10-09'
 
 cgm = load_cgm_csv(RAW_DIR / 'clarity_cgm_holdout.csv', source='clarity')
 events = load_nightscout_events_csv(RAW_DIR / 'nightscout_treatments_holdout.csv')
+
+start = pd.Timestamp(HOLDOUT_START, tz=LOCAL_TZ)
+end   = pd.Timestamp(HOLDOUT_END,   tz=LOCAL_TZ)
+cgm    = cgm[(cgm['timestamp'] >= start) & (cgm['timestamp'] < end)]
+events = events[(events['timestamp'] >= start) & (events['timestamp'] < end)]
 
 holdout = build_period(cgm, events, 'holdout')
 holdout.to_parquet(PROCESSED_DIR / 'holdout.parquet')
@@ -34,6 +41,7 @@ print()
 
 idx = range(len(holdout))
 rows = []
+pred_rows = []
 
 for horizon in HORIZONS_MIN:
     target_col = f'target_glucose_{horizon}'
@@ -74,7 +82,15 @@ for horizon in HORIZONS_MIN:
     # The baseline must be measured on the same rows as the models it scores
     base_mae = mae(truth_common, predictions['persistence'].loc[common])
 
-       # Creates a list of results which holds one row per model per horizon
+    # keep the predictions themselves, not just the summary metrics
+    block = holdout.loc[common, ['timestamp', 'glucose']].copy()
+    block['truth'] = truth_common
+    for name, pred in predictions.items():
+        block[name] = pred.loc[common]
+    block['horizon'] = horizon
+    pred_rows.append(block)
+
+    # Creates a list of results which holds one row per model per horizon
     for name, pred in predictions.items():
         pred = pred.loc[common]
 
@@ -96,6 +112,9 @@ for horizon in HORIZONS_MIN:
 res = pd.DataFrame(rows)
 results_path = REPORTS_DIR / 'holdout_results.csv'
 res.to_csv(results_path, index=False)
+holdout_preds = pd.concat(pred_rows).rename_axis('row').reset_index()
+holdout_preds.to_parquet(REPORTS_DIR / 'holdout_predictions.parquet')
+print('saved', len(holdout_preds), 'prediction rows')
 
 # ---------- print ----------
 print(res.pivot(index='model', columns='horizon', values='mae'))
