@@ -12,18 +12,20 @@ This is strictly a personal research and educational project. Although it is med
 
 ## Highlights
 
-- **MAE 11.8 mg/dL at a 30-minute horizon**, a skill score of 0.070 over the
-  persistence baseline, pooled across five walk-forward splits.
+- **MAE 13.3 mg/dL at a 30-minute horizon on a prospective holdout**, a skill
+  score of 0.102 over the persistence baseline, from models frozen four weeks
+  before the evaluation data existed.
 - **The answer to "engineered features or learned representation" is
   conditional.** XGBoost on hand-built pharmacokinetic features beats an LSTM
   in every split where training and test share an insulin therapy regime, and
-  loses in every split where they do not — consistent across all four horizons.
+  loses in every split where they do not. The pattern held on the holdout as
+  well, in all twelve variant-horizon pairings.
 - **Insulin-on-board and exercise are the only feature groups that clear a
   measured noise floor of 0.01 skill** at every horizon. Interaction terms
   contribute nothing.
 - **Models were frozen and publicly tagged before the evaluation data
-  existed.** The holdout was collected September 15–26 and scored once, on
-  September 27.
+  existed.** The holdout was collected September 25 to October 8 and scored
+  once, on October 9.
 ---
 
 ## Motivation
@@ -54,7 +56,7 @@ How much does each group of features actually contribute to forecast accuracy? I
 *Hypothesis:* The largest single gain will come from tier 2 (insulin-on-board), followed by tier 3 (carbohydrates-on-board), and both gains will grow with the horizon. Tiers 4 through 6 will show little improvement in accuracy. Exercise is logged less frequently than meals, and assigned arbitrary hand-assigned weights. Interactions are products a tree can already learn to approximate. Time of day provides context for things like level steadiness during sleep, or rising in the morning, but it partly redundant because meals and activities occur near the same times every day.
 
 **RQ3 — Therapy transfer.**
-This project spans two collection periods under two different treatment regimes: multiple daily injections (April–May) and an insulin pump in manual mode (August–September). Does a model trained under one regime transfer to the other?
+This project spans two collection periods under two different treatment regimes: multiple daily injections (April–May) and an insulin pump in manual mode (September–October). Does a model trained under one regime transfer to the other?
 
 *Hypothesis:* On the holdout (pump) data, M2 (September data) will outperform M1 (April data), because the holdout shares the same insulin therapy as M2. M3 (April/September combined) will outperform M1, but will fall below M2 for the XGBoost model. The LSTM model will perform best on the M3 data because a longer time frame for training will allow it to more accurately learn relationships.
 
@@ -64,7 +66,7 @@ This project spans two collection periods under two different treatment regimes:
 
 ### Source
 
-Because of lost database records, the April–May data is a mixture of continuous glucose monitor readings downloaded directly from Dexcom and insulin, carbohydrate, and activity events hand-entered through Nightscout. For the September–October period, both the CGM readings and the event logs come from Nightscout.
+Because of lost database records, the April–May data is a mixture of continuous glucose monitor readings downloaded directly from Dexcom and insulin, carbohydrate, and activity events hand-entered through Nightscout. The same split applies to the September and October periods, where CGM readings again come from Dexcom Clarity and the event logs come from Nightscout.
 
 Event logging is manual throughout. This is a known limitation and is discussed under *Cleaning and known data problems* below.
 
@@ -215,7 +217,7 @@ Inputs are standardized with a scaler fit **on training rows only** and saved al
 
 **An enforced horizon gap.** Each training row carries a target drawn from *h* minutes ahead of it. Without intervention, training rows near the boundary have targets that fall *inside* the test block, meaning test-period glucose values have already been seen as labels. Training therefore stops short of the boundary by exactly the horizon length. This leak is invisible in results and is the reason the gap exists.
 
-**Prospective holdout.** The holdout period, September 14–25, did not exist when the models were frozen on September 13. It cannot have influenced feature selection, hyperparameters, or any modeling decision.
+**Prospective holdout.** The holdout period, September 25 to October 8, did not exist when the models were frozen on September 13. It cannot have influenced feature selection, hyperparameters, or any modeling decision. The window was moved once from the originally registered dates; the change and its reason are recorded in `PRE-REGISTRATION.md`, dated before any holdout data was collected.
 
 **One split crosses the collection boundary.** Splits are defined by row position, not by date. With roughly 7,400 rows and five splits, split 2 is the only test block that spans the April-to-September transition: it trains almost entirely on April (MDI) data and tests almost entirely on September (pump) data. This is determined by row positions and is knowable without looking at any result, so split 2 is reported separately from the pooled development mean rather than dropped.
 
@@ -396,20 +398,76 @@ Both architectures degrade in split 2. Two models with nothing in common do not
 fail in the same window by coincidence — the cause is in the data, not in either
 model.
 
-### RQ3 — therapy transfer (HOLDOUT)
+### Prospective holdout
 
-<!-- Sept 26. M1 / M2 / M3 on the holdout, all four horizons, none primary. -->
+Collected September 25 through October 8, after the models were frozen on
+September 13, and scored once on October 9. 4,032 five-minute slots, of which
+roughly 3,880 were scoreable at each horizon.
 
-### Prospective holdout (HOLDOUT)
+Mean absolute error in mg/dL, with skill against persistence in parentheses:
 
-<!-- Sept 26. Run evaluate_holdout.py once. Report the table, the hypo
-     confusion matrix, and what the pre-registered hypotheses got right and
-     wrong. Record results you do not like. -->
+| Model | 15 min | 30 min | 45 min | 60 min |
+|---|---|---|---|---|
+| persistence | 9.37 | 14.82 | 19.10 | 22.72 |
+| linear | 11.29 (−0.205) | 21.36 (−0.441) | 31.37 (−0.642) | 41.67 (−0.834) |
+| xgboost_M1 | 10.77 (−0.149) | 16.76 (−0.131) | 20.91 (−0.094) | 23.02 (−0.013) |
+| xgboost_M2 | 8.45 (0.099) | 13.43 (0.094) | 17.03 (0.109) | 19.75 (0.131) |
+| xgboost_M3 | **8.30 (0.114)** | **13.31 (0.102)** | **16.77 (0.122)** | **19.48 (0.142)** |
+| lstm_M1 | 8.98 (0.042) | 14.07 (0.051) | 19.32 (−0.011) | 19.86 (0.126) |
+| lstm_M2 | 9.34 (0.004) | 15.02 (−0.014) | 17.87 (0.065) | 20.22 (0.110) |
+| lstm_M3 | 8.87 (0.054) | 13.70 (0.075) | 17.46 (0.086) | 19.66 (0.135) |
+
+**RQ3, therapy transfer.** M1, trained only on April injection-era data, is
+worse than persistence at every horizon. M2 and M3 both clear 0.09. The gap
+between M1 and the others is roughly 0.24 skill, twenty-four times the measured
+noise floor.
+
+The hypothesis was half right. M2 beats M1 as predicted, and the LSTM performs
+best on M3 as predicted. But M3 was predicted to fall below M2 for XGBoost and
+it does not, beating it at all four horizons by 0.015, 0.008, 0.013 and 0.011.
+Three of those four clear the noise floor. More data won despite part of it
+coming from a regime the holdout does not share.
+
+**RQ1 replicated out of sample.** Within each variant, the LSTM wins all four
+horizons on M1, and XGBoost wins all four on both M2 and M3. Twelve pairings,
+no exceptions. Engineered features win where training and test share a therapy
+regime and lose where they do not, which is the same pattern the development
+splits showed, now on data that did not exist when the models were frozen.
+
+**The development estimate held.** Development XGBoost at 30 minutes was 0.104
+once split 2 was set aside as the regime-crossing block. Holdout xgboost_M3 at
+30 minutes is 0.102. The validation protocol predicted out-of-sample
+performance to within the noise floor, and the split it had to exclude to do so
+was identified in advance, on a criterion that had nothing to do with results.
+
+**Hypoglycemia detection fails.** Of 155 low rows at the 30-minute horizon,
+persistence catches 0.213. The best model by MAE, xgboost_M3, catches 0.006,
+which is one row. Linear extrapolation, by far the worst model by MAE, has the
+highest sensitivity of anything at 0.471, because it extrapolates a noisy slope
+and crosses the threshold constantly.
+
+That inversion is the result. Shrinking predictions toward the current value is
+what minimizes average error, and it is exactly what prevents a model from ever
+predicting the tail. On this data, average accuracy and rare-event detection are
+not merely different objectives, they are in tension. The capability with the
+clearest practical value is the one this project does not have.
+
+**Data quality note.** The holdout window logged 54 carb-bearing records against
+73 boluses, inverting the ratio seen in September development, which was 85
+against 66. Carbohydrate logging was sparser than in the training data, so the
+COB features were flatter than the models were fitted to expect.
+
 ---
 
 ## Limitations
 
 **Single subject.** All data describes one person. Nothing here generalizes to other individuals, and no claim about glucose forecasting in general is supported by it.
+
+**The model does not detect hypoglycemia.** On the holdout it identified one of
+155 low readings at the 30-minute horizon. The failure is structural rather than
+incidental. A model trained to minimize average error over a distribution where
+most readings are in range has no reason to predict the tail, so this is a
+limitation of the objective rather than of the features or the architecture.
 
 **Small effective sample size.** Aggregate MAE and skill score are adequately supported by a large number of CGM readings. Claims conditioned on context are not. Hypoglycemic sensitivity rests on 62 low events and post-meal accuracy rests on 94 meals, and confidence intervals at those sample sizes are wide.
 
@@ -460,12 +518,14 @@ Artificial-Pancreas/
 │   ├── evaluate_dev.py         RQ1 walk-forward comparison and RQ2 feature ablation
 │   ├── freeze.py               trains M1/M2/M3 at four horizons, serializes 36 files
 │   ├── make_figures.py         builds the four figures from saved results
-│   └── evaluate_holdout.py     scores the frozen models once against the holdout
+│   ├── evaluate_holdout.py     scores the frozen models once against the holdout
+│   └── analyze_holdout.py      post-hoc analysis of the saved holdout predictions
 │
 ├── data/
 │   ├── raw/                    Dexcom Clarity and Nightscout exports
 │   └── processed/
-│       └── development.parquet the feature table every model was trained on
+│       ├── development.parquet the feature table every model was trained on
+│       └── holdout.parquet     the same, for the holdout window
 │
 ├── models/                     36 frozen model files
 │   └── freeze_manifest.csv     SHA-256 hash, size and training rows for each
@@ -475,8 +535,11 @@ Artificial-Pancreas/
 │   ├── dev_ablation_seed42.csv feature tier ablation
 │   ├── dev_ablation_seed7.csv  the same ablation reseeded, for the noise floor
 │   ├── dev_predictions_seed42.parquet  per-row predictions, used for the figures
-│   └── figures/                the four README figures
+│   ├── holdout_results.csv     MAE, skill and hypo metrics for all eight predictors
+│   ├── holdout_predictions.parquet     per-row holdout predictions
+│   └── figures/                the README figures
 │
+├── PRE-REGISTRATION.md
 ├── requirements.txt
 ├── LICENSE
 └── README.md
